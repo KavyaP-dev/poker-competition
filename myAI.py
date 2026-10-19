@@ -1,18 +1,15 @@
-"""A small, self-contained Texas hold'em tournament bot."""
-
 import random
 
 from poker.action import Action
 from poker.card import Card, Rank, Suit
 from poker.game_state import GameState
-from poker.hand import evaluate
+from poker.internals.hand import evaluate
 
 
 DECK = tuple(Card(rank, suit) for rank in Rank for suit in Suit)
 
 
-def estimate_equity(state: GameState, opponents: int, trials: int = 96) -> float:
-    """Estimate our share of the pot against unknown, random opponent cards."""
+def estimate_equity(state: GameState, opponents: int, trials: int = 1400) -> float:
     hole = tuple(state.my_player.hole_cards)
     board = tuple(state.community_cards)
     known = set(hole) | set(board)
@@ -56,7 +53,6 @@ def myAI(state: GameState) -> Action:
     pot_odds = cost / (state.chips_in_pot + cost) if cost else 0.0
     board_size = len(state.community_cards)
 
-    # Early streets need a cushion because later bets can still be costly.
     caution = 0.07 if board_size == 0 else 0.04 if board_size < 5 else 0.02
     if to_call > state.chips_in_pot // 2:
         caution += 0.05
@@ -64,7 +60,6 @@ def myAI(state: GameState) -> Action:
     if cost and equity < pot_odds + caution:
         return Action.fold()
 
-    # A stronger hand can build the pot, while preserving chips with marginal hands.
     fair_share = 1 / (opponents + 1)
     strong = equity > fair_share + 0.15 and equity > pot_odds + 0.12
     if strong and me.chips_in_stack > to_call:
@@ -76,6 +71,5 @@ def myAI(state: GameState) -> Action:
 
 
 def defaultAI(state: GameState) -> Action:
-    """Safe fallback used by the competition engine if our bot fails."""
     to_call = max(player.chips_bet for player in state.players) - state.my_player.chips_bet
     return Action.fold() if to_call else Action.check()
